@@ -1009,9 +1009,9 @@ async function sendMobileMessage() {
 async function callAI(apiKey, messages, system = null) {
   const body = { model: 'claude-sonnet-4-5-20251001', max_tokens: 1500, messages };
   if (system) body.system = system;
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://lingering-resonance-6c6b.joseyluisfdez.workers.dev/', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-allowed': 'true' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify(body)
   });
   const data = await res.json();
@@ -1037,25 +1037,21 @@ function showToast(msg, type='') {
 // GITHUB STORAGE
 // ═══════════════════════════════
 function saveGitHubConfig() {
-  var u = document.getElementById('githubUser');
-  var r = document.getElementById('githubRepo');
   var t = document.getElementById('githubToken');
-  if(u) localStorage.setItem('ghUser', u.value);
-  if(r) localStorage.setItem('ghRepo', r.value);
   if(t) localStorage.setItem('ghToken', t.value);
 }
 function loadGitHubConfig() {
   var u = document.getElementById('githubUser');
   var r = document.getElementById('githubRepo');
   var t = document.getElementById('githubToken');
-  if(u) u.value = localStorage.getItem('ghUser') || '';
-  if(r) r.value = localStorage.getItem('ghRepo') || 'informes-garcia-ochoa';
+  if(u) { u.value = 'joseyluisfdez-maker'; u.readOnly = true; }
+  if(r) { r.value = 'informes-garcia-ochoa'; r.readOnly = true; }
   if(t) t.value = localStorage.getItem('ghToken') || '';
 }
 function getGHCfg() {
   return {
-    user: localStorage.getItem('ghUser') || '',
-    repo: localStorage.getItem('ghRepo') || 'informes-garcia-ochoa',
+    user: 'joseyluisfdez-maker',
+    repo: 'informes-garcia-ochoa',
     tok:  localStorage.getItem('ghToken') || ''
   };
 }
