@@ -63,6 +63,13 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
 .mobile-textarea::placeholder { color: var(--text-muted); }
 .mobile-send { width: 38px; height: 38px; background: var(--accent); border: none; border-radius: 50%; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
 .mobile-send:hover { background: var(--accent-hover); }
+.mobile-cfg-btn { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+.mobile-config { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; }
+.mcfg-row { margin-bottom: 10px; }
+.mcfg-row label { display: block; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; }
+.mcfg-row input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-sans); font-size: 13px; padding: 7px 10px; }
+.mcfg-close { text-align: right; }
+.mcfg-close button { background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); padding: 6px 16px; font-size: 12px; cursor: pointer; font-family: var(--font-sans); }
 .mobile-mic { width: 38px; height: 38px; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; color: var(--text-dim); font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
 .mobile-mic:hover { border-color: var(--accent); color: var(--accent); }
 .mobile-mic.recording { background: var(--danger); border-color: var(--danger); color: white; animation: pulse 1s infinite; }
@@ -231,8 +238,8 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
 .loading-text { font-size: 13px; color: var(--text-dim); }
 
 /* RESPONSIVE */
-@media (max-width: 768px) { .mobile-app { display: flex; } .desktop-app { display: none !important; } }
-@media (min-width: 769px) { .mobile-app { display: none !important; } .desktop-app { display: flex; } }
+@media (max-width: 480px) { .mobile-app { display: flex; } .desktop-app { display: none !important; } }
+@media (min-width: 481px) { .mobile-app { display: none !important; } .desktop-app { display: flex; } }
 </style>
 </head>
 <body>
@@ -242,6 +249,20 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
   <div class="mobile-header">
     <span class="mobile-title">Informes</span>
     <span class="mobile-period" id="mobilePeriod"></span>
+    <button class="mobile-cfg-btn" onclick="toggleMobileConfig()" title="Ajustes">⚙</button>
+  </div>
+  <div class="mobile-config" id="mobileConfig" style="display:none">
+    <div class="mcfg-row">
+      <label>API Key Anthropic</label>
+      <input type="password" id="mApiKey" placeholder="sk-ant-..." oninput="saveMobileConfig()">
+    </div>
+    <div class="mcfg-row">
+      <label>GitHub Token</label>
+      <input type="password" id="mGhToken" placeholder="ghp_..." oninput="saveMobileConfig()">
+    </div>
+    <div class="mcfg-close">
+      <button onclick="toggleMobileConfig()">Cerrar</button>
+    </div>
   </div>
   <div class="mobile-chat" id="mobileChat"></div>
   <div class="mobile-input-area">
@@ -990,7 +1011,7 @@ async function sendMobileMessage() {
   const text = input.value.trim();
   if (!text) return;
   const apiKey = getApiKey();
-  if (!apiKey) { addMobileBubble('ai', 'Necesitas configurar tu API Key desde el ordenador.'); return; }
+  if (!apiKey) { addMobileBubble('ai', 'Configura tu API Key pulsando el botón ⚙ arriba a la derecha.'); return; }
   addMobileBubble('user', text);
   input.value = ''; autoResize(input);
   mobileChatHistory.push({ role: 'user', content: text });
@@ -1195,6 +1216,29 @@ function toggleMic() {
   }
 }
 
+
+// ═══════════════════════════════════════
+// CONFIG MÓVIL
+// ═══════════════════════════════════════
+function toggleMobileConfig() {
+  var panel = document.getElementById('mobileConfig');
+  if (!panel) return;
+  var visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if (!visible) loadMobileConfig();
+}
+function saveMobileConfig() {
+  var k = document.getElementById('mApiKey');
+  var t = document.getElementById('mGhToken');
+  if (k && k.value) localStorage.setItem('apiKey', k.value);
+  if (t && t.value) localStorage.setItem('ghToken', t.value);
+}
+function loadMobileConfig() {
+  var k = document.getElementById('mApiKey');
+  var t = document.getElementById('mGhToken');
+  if (k) k.value = localStorage.getItem('apiKey') || '';
+  if (t) t.value = localStorage.getItem('ghToken') || '';
+}
 
 init();
 </script>
