@@ -1007,7 +1007,7 @@ async function sendMobileMessage() {
 // API
 // ═══════════════════════════════════════
 async function callAI(apiKey, messages, system = null) {
-  const body = { model: 'claude-sonnet-4-5-20251001', max_tokens: 1500, messages };
+  const body = { model: 'claude-sonnet-4-5-20250929', max_tokens: 1500, messages };
   if (system) body.system = system;
   const res = await fetch('https://lingering-resonance-6c6b.joseyluisfdez.workers.dev/', {
     method: 'POST',
