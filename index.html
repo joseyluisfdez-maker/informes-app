@@ -768,7 +768,18 @@ async function improveSection() {
   if (!apiKey) { showToast('Añade tu API Key', 'error'); return; }
   showLoading('Mejorando sección...');
   try {
-    const result = await callAI(apiKey, [{ role: 'user', content: `Eres redactor profesional de informes de correduría de seguros. Mejora este texto para que sea más claro, profesional y conciso. No añadas información que no esté. Devuelve solo el texto mejorado, sin explicaciones:\n\n${content}` }]);
+    const result = await callAI(apiKey, [{ role: 'user', content: `Eres redactor profesional especializado en informes corporativos de corredurías de seguros.
+
+Tu tarea es mejorar el siguiente texto para que cumpla estos criterios:
+- Español formal y correcto. Ortografía y puntuación impecables.
+- Frases cortas y directas. Una idea por frase.
+- Sin emojis, sin asteriscos, sin markdown, sin palabras en mayúsculas innecesarias.
+- Estilo impersonal o en tercera persona, propio de un informe profesional.
+- No añadas datos, nombres ni cifras que no estén en el texto original.
+- Devuelve únicamente el texto mejorado, sin explicaciones ni comentarios.
+
+Texto a mejorar:
+${content}` }]);
     document.getElementById('richEditor').innerHTML = result.replace(/\n/g,'<br>');
     setSectionContent(activeSection, document.getElementById('richEditor').innerHTML);
     addCost(result.length / 4);
@@ -786,7 +797,19 @@ async function generateFullReport() {
   const monthName = getMonthLabel(currentMonth, currentYear);
   const sectionsData = SECTIONS.map(s => ({ name: s, content: getSectionContent(s).replace(/<[^>]*>/g,'').trim() || '' })).filter(s => s.content);
   if (sectionsData.length === 0) { showToast('No hay contenido en ninguna sección', 'error'); return; }
-  const prompt = `Eres redactor profesional de informes de correduría de seguros. Genera un informe mensual completo para ${monthName}. Mejora la redacción pero no añadas datos que no estén. Responde en JSON: {"sections":[{"name":"nombre","html":"contenido html"}]}\n\n${sectionsData.map(s=>`## ${s.name}\n${s.content}`).join('\n\n')}`;
+  const prompt = `Eres redactor profesional especializado en informes corporativos de corredurías de seguros.
+
+Genera el informe mensual de ${monthName} aplicando estos criterios:
+- Español formal y correcto. Ortografía y puntuación impecables.
+- Frases cortas y directas. Una idea por frase.
+- Sin emojis, sin asteriscos, sin markdown.
+- Estilo impersonal o tercera persona.
+- No añadas datos que no estén en el original.
+
+Responde ÚNICAMENTE con JSON válido:
+{"sections":[{"name":"nombre exacto","html":"contenido html"}]}
+
+${sectionsData.map(s=>`## ${s.name}\n${s.content}`).join('\n\n')}`;
   showLoading('Generando informe...');
   try {
     const result = await callAI(apiKey, [{ role:'user', content: prompt }]);
@@ -943,14 +966,22 @@ async function sendDeskMessage() {
     ? `Sección activa: "${activeSection}". Contenido: "${document.getElementById('richEditor').innerText.trim().substring(0,300) || '(vacío)'}".`
     : 'Sin sección activa.';
 
-  const system = `Eres asistente para informes mensuales de una correduría de seguros.
-Secciones disponibles: ${SECTIONS.join(', ')}.
-${sectionCtx}
-Comportamiento:
-1. Si el usuario cuenta algo ocurrido → clasifica y redacta texto profesional → JSON: {"action":"suggest","section":"...","text":"...","reply":"..."}
-2. Si pide modificar/mejorar/reescribir la sección activa → JSON: {"action":"update_section","html":"...","reply":"..."}
-3. Si es conversación → JSON: {"action":"chat","reply":"..."}
-No inventes datos. Responde SIEMPRE en JSON válido.`;
+  const system = `Eres el asistente de informes mensuales de Olga, responsable del departamento de Producción en Seguros García-Ochoa.
+
+Secciones del informe: ${SECTIONS.join(', ')}.
+
+NORMAS DE ESCRITURA (obligatorias en todo texto que redactes para el informe):
+- Español formal y correcto. Ortografía y puntuación impecables.
+- Frases cortas. Una idea por frase. Punto y aparte entre ideas distintas.
+- Sin emojis. Sin asteriscos. Sin markdown. Sin mayúsculas innecesarias.
+- Estilo impersonal o tercera persona, propio de un informe profesional corporativo.
+- No inventes datos, nombres ni cifras que no estén en lo que te cuente Olga.
+
+COMPORTAMIENTO:
+- Si Olga cuenta algo del trabajo: clasifícalo en la sección correcta y redáctalo con las normas anteriores. Responde con: {"action":"suggest","section":"nombre exacto","text":"texto profesional","reply":"confirmación breve sin emojis"}
+- Si hace una pregunta general: responde en máximo 2 frases, directo. Responde con: {"action":"chat","reply":"respuesta breve"}
+- Nunca menciones JSON, código, secciones técnicas ni cómo funciona la app.
+- Responde SIEMPRE con JSON válido. Sin texto fuera del JSON.`;
 
   showLoading('Pensando...');
   try {
@@ -990,18 +1021,26 @@ function addMobileBubble(role, text) {
   if (!c) return;
   const d = document.createElement('div');
   d.className = `chat-bubble ${role}`;
-  d.innerHTML = role==='ai' ? `<div class="bubble-label">Asistente</div>${escHtml(text)}` : escHtml(text);
+  const safe = escHtml(text).replace(/\n/g, '<br>');
+  d.innerHTML = role==='ai' ? `<div class="bubble-label">Asistente</div>${safe}` : safe;
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
 }
 
-function addMobileSuggestion(sectionName, text, onSave) {
+function addMobileSuggestion(section, text, onSave) {
   const c = document.getElementById('mobileChat');
+  if (!c) return;
   const d = document.createElement('div');
   d.className = 'chat-suggestion';
-  d.innerHTML = `<div class="chat-suggestion-label">→ ${sectionName}</div><div class="chat-suggestion-text">${escHtml(text)}</div><div class="chat-suggestion-actions"><button class="sug-btn save">Guardar</button><button class="sug-btn discard">Descartar</button></div>`;
-  d.querySelector('.save').onclick = () => { onSave(); d.remove(); };
-  d.querySelector('.discard').onclick = () => d.remove();
+  d.innerHTML = `
+    <div class="chat-suggestion-label">Guardar en: <strong>${escHtml(section)}</strong></div>
+    <div class="chat-suggestion-text">${escHtml(text).replace(/\n/g,'<br>')}</div>
+    <div class="chat-suggestion-actions">
+      <button class="sug-btn save" onclick="this.closest('.chat-suggestion').remove(); (arguments[0])()">Guardar</button>
+      <button class="sug-btn discard" onclick="this.closest('.chat-suggestion').remove()">Descartar</button>
+    </div>`;
+  d.querySelector('.sug-btn.save').onclick = function() { d.remove(); onSave(); };
+  d.querySelector('.sug-btn.discard').onclick = function() { d.remove(); };
   c.appendChild(d);
   c.scrollTop = c.scrollHeight;
 }
@@ -1016,7 +1055,24 @@ async function sendMobileMessage() {
   input.value = ''; autoResize(input);
   mobileChatHistory.push({ role: 'user', content: text });
 
-  const system = `Eres asistente de voz para registrar el día a día de una correduría de seguros. Secciones: ${SECTIONS.join(', ')}. Si el usuario cuenta algo, clasifícalo y redacta texto profesional. JSON: {"action":"suggest","section":"...","text":"...","reply":"..."} o {"action":"chat","reply":"..."}. Sé breve y cercano.`;
+  const system = `Eres el asistente de informes mensuales de Olga, responsable del departamento de Producción en Seguros García-Ochoa. Tu única función es ayudarla a registrar lo que ha ocurrido durante el mes para construir el informe mensual.
+
+Secciones del informe: ${SECTIONS.join(', ')}.
+
+INSTRUCCIONES ESTRICTAS:
+- Cuando Olga cuente algo relevante para el informe, clasifícalo en la sección correcta y redacta un texto profesional, claro y bien estructurado en español formal. Sin emojis. Sin markdown. Sin asteriscos.
+- El texto que redactes para la sección debe estar en tercera persona o forma impersonal, como corresponde a un informe profesional.
+- Usa párrafos cortos y puntuación correcta. Cada idea en una frase separada.
+- Si la información no corresponde claramente a ninguna sección, pregunta brevemente para aclarar.
+- Si Olga hace una pregunta general no relacionada con el informe, responde en máximo 2 frases y redirige a registrar información.
+- Nunca expliques cómo funciona la app ni menciones JSON, código ni sistemas.
+- Responde ÚNICAMENTE con JSON válido, sin texto adicional fuera del JSON.
+
+Formato de respuesta cuando hay algo que guardar:
+{"action":"suggest","section":"nombre exacto de la sección","text":"texto profesional redactado para el informe","reply":"confirmación breve en lenguaje natural, sin emojis"}
+
+Formato de respuesta cuando es solo conversación:
+{"action":"chat","reply":"respuesta breve y directa, sin emojis, en español formal"}`;
 
   try {
     const result = await callAI(apiKey, mobileChatHistory.slice(-6), system);
