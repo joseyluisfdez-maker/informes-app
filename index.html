@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f3ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Informes">
-<meta name="app-version" content="2.3.0">
+<meta name="app-version" content="2.4.0">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -292,7 +292,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       <button onclick="saveMonthToGitHub()">Sincronizar ahora</button>
       <button onclick="toggleMobileConfig()">Cerrar</button>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.3.0</div>
+    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.4.0</div>
   </div>
   <div class="mobile-chat" id="mobileChat"></div>
   <div class="mobile-input-area">
@@ -383,7 +383,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
         <button class="hbtn" id="btnBak" style="display:none;margin-top:8px;width:100%;font-size:10px" onclick="recoverBackups()">Recuperar copias locales</button>
         <button class="hbtn" style="margin-top:8px;width:100%;font-size:10px" onclick="downloadBackup()">Descargar copia de todo</button>
         </details>
-        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.3.0</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.4.0</div>
       </div>
     </div>
 
@@ -873,6 +873,7 @@ async function improveSection() {
   if (!content) { showToast('La sección está vacía', 'error'); return; }
   const apiKey = getApiKey();
   if (!apiKey) { showToast('Añade tu API Key', 'error'); return; }
+  if (/<table/i.test(document.getElementById('richEditor').innerHTML) && !confirm('Esta sección tiene una tabla. Al mejorar el texto se convertirá en texto normal (puedes deshacerlo). ¿Continuar?')) return;
   showLoading('Mejorando sección...');
   try {
     const result = await callAI(apiKey, [{ role: 'user', content: `Eres redactor profesional especializado en informes corporativos de corredurías de seguros.
@@ -882,11 +883,13 @@ Tu tarea es mejorar el siguiente texto para que cumpla estos criterios:
 - Frases cortas y directas. Una idea por frase.
 - Sin emojis, sin asteriscos, sin markdown, sin palabras en mayúsculas innecesarias.
 - Estilo impersonal o en tercera persona, propio de un informe profesional.
-- No añadas datos, nombres ni cifras que no estén en el texto original.
+- Conserva exactamente nombres, compañías, cifras y fechas. No añadas datos que no estén en el texto original.
+- Mantén todas las ideas y su orden. No resumas ni elimines información; solo mejora la redacción.
+- Separa los párrafos con una línea en blanco.
 - Devuelve únicamente el texto mejorado, sin explicaciones ni comentarios.
 
 Texto a mejorar:
-${content}` }], null, { maxTokens: 4000, timeoutMs: 120000, strict: true });
+${content}` }], null, { maxTokens: 4000, timeoutMs: 120000, strict: true, temperature: 0.2 });
     const _newHtml = escHtml(result.trim()).replace(/\n/g,'<br>');
     saveUndo({ year: currentYear, month: currentMonth, sections: { [activeSection]: getSectionContent(activeSection) } });
     if (setSectionContent(activeSection, _newHtml)) document.getElementById('richEditor').innerHTML = _newHtml;
@@ -911,7 +914,9 @@ Genera el informe mensual de ${monthName} aplicando estos criterios:
 - Frases cortas y directas. Una idea por frase.
 - Sin emojis, sin asteriscos, sin markdown.
 - Estilo impersonal o tercera persona.
-- No añadas datos que no estén en el original.
+- Conserva exactamente nombres, compañías, cifras y fechas. No añadas datos que no estén en el original.
+- Mantén todas las ideas de cada sección; no resumas ni elimines información.
+- Usa el nombre exacto de cada sección y no añadas secciones nuevas.
 
 Responde ÚNICAMENTE con JSON válido:
 {"sections":[{"name":"nombre exacto","html":"contenido html"}]}
@@ -919,7 +924,7 @@ Responde ÚNICAMENTE con JSON válido:
 ${sectionsData.map(s=>`## ${s.name}\n${s.content}`).join('\n\n')}`;
   showLoading('Generando informe...');
   try {
-    const result = await callAI(apiKey, [{ role:'user', content: prompt }], null, { maxTokens: 8000, timeoutMs: 150000, strict: true });
+    const result = await callAI(apiKey, [{ role:'user', content: prompt }], null, { maxTokens: 8000, timeoutMs: 150000, strict: true, temperature: 0.2 });
     const parsed = parseAiJson(result);
     if (!parsed || !Array.isArray(parsed.sections)) throw new Error('La IA no devolvió un informe válido. Inténtalo de nuevo.');
     const undo = { year: currentYear, month: currentMonth, sections: {} };
@@ -1065,6 +1070,53 @@ function addDeskSuggestion(sectionName, text, onSave) {
   c.scrollTop = c.scrollHeight;
 }
 
+
+// Prompt único para el chat (móvil y PC). Incluye el estado actual del informe para clasificar bien y no repetir.
+function buildChatSystem(activeInfo) {
+  var estado = SECTIONS.map(function(n) {
+    var t = plainText(getSectionContent(n)).replace(/\s+/g, ' ');
+    return '- ' + n + ': ' + (t ? 'ya tiene contenido ("' + t.substring(0, 110) + (t.length > 110 ? '…' : '') + '")' : 'vacía');
+  }).join('\n');
+  return `Eres el asistente de informes mensuales de Olga, responsable del departamento de Producción en Seguros García-Ochoa. Tu función es ayudarla a registrar lo ocurrido durante el mes para construir el informe mensual.
+
+Informe en curso: ${getMonthLabel(currentMonth, currentYear)}. Hoy es ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.
+
+Estado actual de las secciones:
+${estado}
+${activeInfo || ''}
+
+NORMAS DE ESCRITURA (obligatorias en todo texto que redactes para el informe):
+- Español formal y correcto. Ortografía y puntuación impecables.
+- Frases cortas. Una idea por frase. Párrafos breves.
+- Sin emojis, sin asteriscos, sin markdown, sin mayúsculas innecesarias.
+- Estilo impersonal o tercera persona, propio de un informe corporativo.
+- Conserva exactamente nombres, compañías, cifras y fechas que cuente Olga. No inventes ni completes datos que no te haya dado.
+- Si falta un dato necesario (una cifra, una fecha, un nombre), no lo supongas: redacta con lo que hay y pregúntalo brevemente en "reply".
+
+COMPORTAMIENTO:
+- Si Olga cuenta algo relevante para el informe, clasifícalo en la sección correcta y redáctalo según las normas. Usa el nombre exacto de la sección.
+- Si lo que cuenta ya consta en la sección, no lo repitas: indícalo en "reply" y no propongas texto.
+- Si el mensaje mezcla temas de varias secciones, propón el texto de la principal y avisa en "reply" de qué parte queda para otra sección, para que Olga la cuente aparte.
+- Si no está claro a qué sección corresponde, pregunta brevemente cuál.
+- Si hace una pregunta general, responde en máximo 2 frases y redirige a registrar información.
+- Nunca menciones JSON, código ni cómo funciona la app.
+- Responde ÚNICAMENTE con JSON válido, sin texto fuera del JSON.
+
+Formato cuando hay algo que guardar:
+{"action":"suggest","section":"nombre exacto de la sección","text":"texto redactado para el informe","reply":"confirmación breve, sin emojis"}
+
+Formato cuando es solo conversación o falta aclarar:
+{"action":"chat","reply":"respuesta breve y directa, en español formal, sin emojis"}`;
+}
+
+// Al historial solo va lo útil (no el JSON entero), para ahorrar gasto y no confundir al modelo.
+function historyEntry(result, parsed) {
+  if (!parsed) return String(result || '');
+  var t = String(parsed.reply || '');
+  if (parsed.action === 'suggest') t += (t ? ' ' : '') + '[Propuesta de texto para ' + (parsed.section || 'una sección') + ']';
+  return t || String(result || '');
+}
+
 async function sendDeskMessage() {
   const input = document.getElementById('deskChatInput');
   const text = input.value.trim();
@@ -1080,28 +1132,13 @@ async function sendDeskMessage() {
     ? `Sección activa: "${activeSection}". Contenido: "${document.getElementById('richEditor').innerText.trim().substring(0,300) || '(vacío)'}".`
     : 'Sin sección activa.';
 
-  const system = `Eres el asistente de informes mensuales de Olga, responsable del departamento de Producción en Seguros García-Ochoa.
-
-Secciones del informe: ${SECTIONS.join(', ')}.
-
-NORMAS DE ESCRITURA (obligatorias en todo texto que redactes para el informe):
-- Español formal y correcto. Ortografía y puntuación impecables.
-- Frases cortas. Una idea por frase. Punto y aparte entre ideas distintas.
-- Sin emojis. Sin asteriscos. Sin markdown. Sin mayúsculas innecesarias.
-- Estilo impersonal o tercera persona, propio de un informe profesional corporativo.
-- No inventes datos, nombres ni cifras que no estén en lo que te cuente Olga.
-
-COMPORTAMIENTO:
-- Si Olga cuenta algo del trabajo: clasifícalo en la sección correcta y redáctalo con las normas anteriores. Responde con: {"action":"suggest","section":"nombre exacto","text":"texto profesional","reply":"confirmación breve sin emojis"}
-- Si hace una pregunta general: responde en máximo 2 frases, directo. Responde con: {"action":"chat","reply":"respuesta breve"}
-- Nunca menciones JSON, código, secciones técnicas ni cómo funciona la app.
-- Responde SIEMPRE con JSON válido. Sin texto fuera del JSON.`;
+  const system = buildChatSystem(sectionCtx);
 
   showLoading('Pensando...');
   try {
-    const result = await callAI(apiKey, deskChatHistory.slice(-8), system);
-    deskChatHistory.push({ role: 'assistant', content: result });
+    const result = await callAI(apiKey, deskChatHistory.slice(-8), system, { temperature: 0.3 });
     let parsed = parseAiJson(result);
+    deskChatHistory.push({ role: 'assistant', content: historyEntry(result, parsed) });
     if (!parsed) { addDeskBubble('ai', result); return; }
     if (parsed.action === 'suggest') {
       const _sec = resolveSection(parsed.section);
@@ -1175,30 +1212,13 @@ async function sendMobileMessage() {
   input.value = ''; autoResize(input);
   mobileChatHistory.push({ role: 'user', content: text });
 
-  const system = `Eres el asistente de informes mensuales de Olga, responsable del departamento de Producción en Seguros García-Ochoa. Tu única función es ayudarla a registrar lo que ha ocurrido durante el mes para construir el informe mensual.
-
-Secciones del informe: ${SECTIONS.join(', ')}.
-
-INSTRUCCIONES ESTRICTAS:
-- Cuando Olga cuente algo relevante para el informe, clasifícalo en la sección correcta y redacta un texto profesional, claro y bien estructurado en español formal. Sin emojis. Sin markdown. Sin asteriscos.
-- El texto que redactes para la sección debe estar en tercera persona o forma impersonal, como corresponde a un informe profesional.
-- Usa párrafos cortos y puntuación correcta. Cada idea en una frase separada.
-- Si la información no corresponde claramente a ninguna sección, pregunta brevemente para aclarar.
-- Si Olga hace una pregunta general no relacionada con el informe, responde en máximo 2 frases y redirige a registrar información.
-- Nunca expliques cómo funciona la app ni menciones JSON, código ni sistemas.
-- Responde ÚNICAMENTE con JSON válido, sin texto adicional fuera del JSON.
-
-Formato de respuesta cuando hay algo que guardar:
-{"action":"suggest","section":"nombre exacto de la sección","text":"texto profesional redactado para el informe","reply":"confirmación breve en lenguaje natural, sin emojis"}
-
-Formato de respuesta cuando es solo conversación:
-{"action":"chat","reply":"respuesta breve y directa, sin emojis, en español formal"}`;
+  const system = buildChatSystem('');
 
   const _t = addMobileBubble('ai', 'Pensando...');
   try {
-    const result = await callAI(apiKey, mobileChatHistory.slice(-6), system);
-    mobileChatHistory.push({ role: 'assistant', content: result });
+    const result = await callAI(apiKey, mobileChatHistory.slice(-6), system, { temperature: 0.3 });
     let parsed = parseAiJson(result);
+    mobileChatHistory.push({ role: 'assistant', content: historyEntry(result, parsed) });
     if (!parsed) { addMobileBubble('ai', result); return; }
     if (parsed.action === 'suggest') {
       const _sec = resolveSection(parsed.section);
@@ -1278,7 +1298,7 @@ async function callAI(apiKey, messages, system = null, opts = {}) {
   var model = opts.model || AI_MODEL;
   var maxTokens = opts.maxTokens || 1500;
   var timeoutMs = opts.timeoutMs || 60000;
-  var lastErr = null;
+  var lastErr = null, noTemp = false;
   for (var attempt = 0; attempt < 3; attempt++) {
     var ctrl = new AbortController();
     var to = setTimeout(function() { ctrl.abort(); }, timeoutMs);
@@ -1286,6 +1306,7 @@ async function callAI(apiKey, messages, system = null, opts = {}) {
     try {
       var body = { model: model, max_tokens: maxTokens, messages: msgs };
       if (system) body.system = system;
+      if (typeof opts.temperature === 'number' && !noTemp) body.temperature = opts.temperature;
       res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: aiHeaders(apiKey),
@@ -1309,6 +1330,7 @@ async function callAI(apiKey, messages, system = null, opts = {}) {
       if (data.stop_reason === 'max_tokens' && opts.strict) throw new Error('La respuesta de la IA se cortó por ser demasiado larga. Inténtalo con menos contenido o por secciones.');
       return text;
     }
+    if (res.status === 400 && data && data.error && /temperature/i.test(data.error.message || '') && !noTemp) { noTemp = true; continue; }
     if (res.status === 404 && data && data.error && /model/i.test(data.error.message || '') && model !== AI_MODEL_FALLBACK) { model = AI_MODEL_FALLBACK; continue; }
     if ([429, 500, 502, 503, 504, 529].indexOf(res.status) !== -1 && attempt < 2) { await sleep(2000 * (attempt + 1)); continue; }
     throw new Error(aiErrorText(res.status, data));
@@ -1932,7 +1954,7 @@ init();
 
 // Copia de seguridad: descarga un archivo con todos los textos y portada de este dispositivo (sin claves ni tokens).
 function downloadBackup() {
-  var out = { app: 'informes', version: '2.3.0', exportedAt: new Date().toISOString(), data: {} };
+  var out = { app: 'informes', version: '2.4.0', exportedAt: new Date().toISOString(), data: {} };
   try {
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
