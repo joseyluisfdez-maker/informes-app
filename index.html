@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f3ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Informes">
-<meta name="app-version" content="2.1.0">
+<meta name="app-version" content="2.2.0">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -291,7 +291,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       <button onclick="saveMonthToGitHub()">Sincronizar ahora</button>
       <button onclick="toggleMobileConfig()">Cerrar</button>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.1.0</div>
+    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.2.0</div>
   </div>
   <div class="mobile-chat" id="mobileChat"></div>
   <div class="mobile-input-area">
@@ -378,7 +378,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
         <div id="githubStatus" style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:center"></div>
         <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center;line-height:1.4">Lo que escribas se envía a la IA de Anthropic (EE. UU.) y se guarda en GitHub. No incluyas datos personales de clientes.</div>
         <button class="hbtn" id="btnBak" style="display:none;margin-top:8px;width:100%;font-size:10px" onclick="recoverBackups()">Recuperar copias locales</button>
-        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.1.0</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.2.0</div>
       </div>
     </div>
 
@@ -518,7 +518,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
           </div>
           <div class="editor-content" id="richEditor" contenteditable="true"
             data-placeholder="Escribe aquí o usa el chat para generar contenido..."
-            oninput="saveEditorContent()" onkeydown="handleEditorKeydown(event)"></div>
+            oninput="saveEditorContent()" onkeydown="handleEditorKeydown(event)" onpaste="handlePaste(event)"></div>
         </div>
       </div>
 
@@ -815,6 +815,29 @@ function execCmd(cmd, value = null) {
 function saveEditorContent() {
   if (!activeSection || activeView !== 'section') return;
   setSectionContent(activeSection, document.getElementById('richEditor').innerHTML);
+}
+
+// Al pegar: solo texto con estructura básica. Sin estilos de Word/web ni imágenes (una imagen pegada
+// puede pasar de 1 MB y bloquear la sincronización del mes con GitHub).
+function handlePaste(e) {
+  var cd = e.clipboardData;
+  if (!cd) return;
+  var html = cd.getData('text/html'), txt = cd.getData('text/plain');
+  if (!html) {
+    if (!txt) { e.preventDefault(); showToast('Las imágenes no se pueden pegar: el informe es solo texto', 'error'); }
+    return;
+  }
+  e.preventDefault();
+  var clean = '';
+  try {
+    clean = window.DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['p','br','b','strong','i','em','u','ul','ol','li','h1','h2','h3','h4','table','thead','tbody','tr','td','th','blockquote','hr','div','span'],
+      ALLOWED_ATTR: ['colspan','rowspan']
+    });
+  } catch (err) { clean = ''; }
+  if (!clean || !plainText(clean)) clean = escHtml(txt).replace(/\n/g, '<br>');
+  document.execCommand('insertHTML', false, clean);
+  saveEditorContent();
 }
 
 function handleEditorKeydown(e) {
