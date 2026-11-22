@@ -1418,8 +1418,8 @@ function mergeMonth(year, month, remote, opts) {
     } else if (L === Rraw || L === R) {
       p.merged = R;
     } else if (!dirty) {
-      p.merged = R;
-      if (B === null && plainText(L)) p.backup = true;
+      if (B === null && plainText(L) && !plainText(R)) { p.merged = L; p.push = true; }   // dispositivo con datos locales previos y remoto vacío: se conservan y se suben
+      else { p.merged = R; if (B === null && plainText(L)) p.backup = true; }
     } else if (B !== null && (Rraw === B || R === B)) {
       p.merged = L; p.push = true;
     } else {
