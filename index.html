@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f3ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Informes">
-<meta name="app-version" content="2.0.2">
+<meta name="app-version" content="2.0.3">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob: https:; connect-src https://lingering-resonance-6c6b.joseyluisfdez.workers.dev https://api.github.com; base-uri 'none'; form-action 'none'">
 <title>Gestor de Informes</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -273,7 +273,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       <button onclick="saveMonthToGitHub()">Sincronizar ahora</button>
       <button onclick="toggleMobileConfig()">Cerrar</button>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.0.2</div>
+    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.0.3</div>
   </div>
   <div class="mobile-chat" id="mobileChat"></div>
   <div class="mobile-input-area">
@@ -315,7 +315,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       </div>
     </div>
     <div class="desk-header-right">
-      <div class="cost-badge">Sesión: <span id="costSession">0,00 $</span> &nbsp;|&nbsp; Mes: <span id="costMonth">0,00 $</span></div>
+      <div class="cost-badge" title="Gasto estimado de la IA en euros (tarifa del modelo y cambio aproximado)">Sesión: <span id="costSession">0,000 €</span> &nbsp;|&nbsp; Mes: <span id="costMonth">0,000 €</span></div>
       <span class="month-status-badge" id="monthStatusBadge">🟡 En curso</span>
       <button class="hbtn" onclick="saveMonthToGitHub()" title="Guardar en GitHub" id="btnGuardar">↑ Guardar</button>
       <button class="hbtn" onclick="undoAI()" id="btnDeshacer" style="display:none" title="Deshace el último cambio de la IA">Deshacer IA</button>
@@ -357,7 +357,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
           <input type="password" id="githubToken" placeholder="ghp_..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-sans);font-size:11px;padding:5px 8px" oninput="saveGitHubConfig()">
         </div>
         <div id="githubStatus" style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:center"></div>
-        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.0.2</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.0.3</div>
       </div>
     </div>
 
@@ -699,7 +699,7 @@ function addCost(tokens) {
   updateCostDisplay();
 }
 function updateCostDisplay() {
-  const fmt = n => n.toFixed(3).replace('.',',') + ' $';
+  const fmt = n => n.toFixed(3).replace('.',',') + ' €';
   const se = document.getElementById('costSession'); if(se) se.textContent = fmt(sessionCost);
   const me = document.getElementById('costMonth'); if(me) me.textContent = fmt(monthCost);
 }
@@ -1175,6 +1175,7 @@ const WORKER_URL = 'https://lingering-resonance-6c6b.joseyluisfdez.workers.dev/'
 const AI_MODEL = 'claude-sonnet-4-5-20250929';
 const AI_MODEL_FALLBACK = 'claude-sonnet-5-5';   // se usa solo si el modelo principal deja de existir
 const AI_PRICE_USD_PER_M = { input: 3, output: 15 };  // estimación
+const AI_USD_TO_EUR = 0.91;                            // cambio aproximado (22/11/2026)
 
 function normalizeMessages(messages) {
   var out = [];
@@ -1190,7 +1191,7 @@ function normalizeMessages(messages) {
 
 function accountUsage(u) {
   if (!u) return;
-  var c = ((u.input_tokens || 0) * AI_PRICE_USD_PER_M.input + (u.output_tokens || 0) * AI_PRICE_USD_PER_M.output) / 1e6;
+  var c = ((u.input_tokens || 0) * AI_PRICE_USD_PER_M.input + (u.output_tokens || 0) * AI_PRICE_USD_PER_M.output) / 1e6 * AI_USD_TO_EUR;
   sessionCost += c; monthCost += c;
   try { localStorage.setItem(`mcost_${currentYear}_${currentMonth}`, monthCost.toFixed(4)); } catch (e) {}
   updateCostDisplay();
