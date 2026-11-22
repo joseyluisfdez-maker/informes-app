@@ -1,6 +1,6 @@
 // Service worker de Informes. Red primero para la página (siempre la versión nueva si hay conexión);
 // si no hay red, usa la última copia. Nunca toca peticiones a GitHub ni al worker de IA.
-const CACHE = 'informes-2.2.0';
+const CACHE = 'informes-2.3.0';
 const PAGE_KEY = 'index.html';
 const STATIC = ["manifest.json", "icons/icon-192.png", "icons/icon-512.png", "fonts/lora-latin-400-normal.woff2", "fonts/lora-latin-600-normal.woff2", "fonts/lora-latin-400-italic.woff2", "fonts/mulish-latin-300-normal.woff2", "fonts/mulish-latin-400-normal.woff2", "fonts/mulish-latin-500-normal.woff2", "fonts/mulish-latin-600-normal.woff2", "fonts/mulish-latin-700-normal.woff2"];
 
