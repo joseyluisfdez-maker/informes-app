@@ -6,10 +6,22 @@
 <meta name="theme-color" content="#f5f3ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Informes">
-<meta name="app-version" content="2.0.3">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob: https:; connect-src https://lingering-resonance-6c6b.joseyluisfdez.workers.dev https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2.1.0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src https://lingering-resonance-6c6b.joseyluisfdez.workers.dev https://api.github.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Gestor de Informes</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:'Lora';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/lora-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Lora';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/lora-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Lora';font-style:italic;font-weight:400;font-display:swap;src:url(fonts/lora-latin-400-italic.woff2) format('woff2');}
+@font-face{font-family:'Mulish';font-style:normal;font-weight:300;font-display:swap;src:url(fonts/mulish-latin-300-normal.woff2) format('woff2');}
+@font-face{font-family:'Mulish';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/mulish-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Mulish';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/mulish-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Mulish';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/mulish-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Mulish';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/mulish-latin-700-normal.woff2) format('woff2');}
+</style>
 <style>
 :root {
   --bg: #f5f3ef;
@@ -269,11 +281,17 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       <label>GitHub Token</label>
       <input type="password" id="mGhToken" placeholder="ghp_..." oninput="saveMobileConfig()">
     </div>
+    <div class="mcfg-row">
+      <label>Código de acceso (opcional, en vez de la clave)</label>
+      <input type="password" id="mPin" placeholder="solo si el servidor guarda la clave" oninput="saveMobileConfig()">
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);line-height:1.4;margin:6px 0 10px">Lo que escribas se envía a la IA de Anthropic (EE. UU.) y se guarda en GitHub. No incluyas datos personales de clientes.</div>
     <div class="mcfg-close">
+      <button id="mBtnBak" style="display:none" onclick="recoverBackups()">Recuperar copias locales</button>
       <button onclick="saveMonthToGitHub()">Sincronizar ahora</button>
       <button onclick="toggleMobileConfig()">Cerrar</button>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.0.3</div>
+    <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px">v2.1.0</div>
   </div>
   <div class="mobile-chat" id="mobileChat"></div>
   <div class="mobile-input-area">
@@ -344,6 +362,7 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
       <div class="sidebar-api">
         <label>API Key Anthropic</label>
         <input type="password" id="apiKeyDesk" placeholder="sk-ant-..." oninput="saveApiKey()">
+        <div style="margin-top:10px"><label style="display:block;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;font-weight:700">Código de acceso (opcional)</label><input type="password" id="pinDesk" placeholder="si no usas clave" oninput="savePin()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-sans);font-size:11px;padding:6px 8px"></div>
         <div style="margin-top:10px">
           <label style="display:block;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;font-weight:700">GitHub Usuario</label>
           <input type="text" id="githubUser" placeholder="tu-usuario" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-sans);font-size:11px;padding:5px 8px" oninput="saveGitHubConfig()">
@@ -357,7 +376,9 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
           <input type="password" id="githubToken" placeholder="ghp_..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-sans);font-size:11px;padding:5px 8px" oninput="saveGitHubConfig()">
         </div>
         <div id="githubStatus" style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:center"></div>
-        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.0.3</div>
+        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center;line-height:1.4">Lo que escribas se envía a la IA de Anthropic (EE. UU.) y se guarda en GitHub. No incluyas datos personales de clientes.</div>
+        <button class="hbtn" id="btnBak" style="display:none;margin-top:8px;width:100%;font-size:10px" onclick="recoverBackups()">Recuperar copias locales</button>
+        <div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-align:center">v2.1.0</div>
       </div>
     </div>
 
@@ -563,6 +584,8 @@ function init() {
   updatePeriodLabels();
   renderSidebar();
   loadApiKey();
+  loadPin();
+  updateBakBtn();
   loadCosts();
   loadCoverData();
   loadLogo();
@@ -628,7 +651,9 @@ function setSectionContent(s, v) {
 }
 function saveApiKey() { localStorage.setItem('apiKey', document.getElementById('apiKeyDesk').value); }
 function loadApiKey() { const k = localStorage.getItem('apiKey')||''; const el = document.getElementById('apiKeyDesk'); if(el) el.value=k; }
-function getApiKey() { return (localStorage.getItem('apiKey')||'').trim(); }
+function getApiKey() { var k = (localStorage.getItem('apiKey')||'').trim(); if (k) return k; return (localStorage.getItem('appPin')||'').trim() ? '__PIN__' : ''; }
+function savePin() { var el = document.getElementById('pinDesk'); if (el) localStorage.setItem('appPin', el.value); }
+function loadPin() { var el = document.getElementById('pinDesk'); if (el) el.value = localStorage.getItem('appPin') || ''; }
 
 function saveCoverData() {
   const data = {
@@ -947,7 +972,7 @@ function exportPDF() {
   if (!win) { showToast('El navegador bloqueó la ventana. Permite las ventanas emergentes para exportar.', 'error'); return; }
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
     <title>${title} - ${monthName}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>${pdfFontCss()}</style>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
       body{font-family:'Mulish',sans-serif;color:#1a1a1a;background:white;}
@@ -984,7 +1009,7 @@ function exportPDF() {
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.cover-page,.index-page,.section-page{page-break-after:always;}}
     </style></head><body>
     ${coverHtml}${indexHtml}${sectionsHtml}
-    <script>window.print();<\/script>
+    <script>(function(){var d=false;function go(){if(d)return;d=true;window.print();}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(go,150);});setTimeout(go,3000);}else{go();}})();<\/script>
     </body></html>`);
 }
 
@@ -1197,9 +1222,18 @@ function accountUsage(u) {
   updateCostDisplay();
 }
 
+function aiHeaders(apiKey) {
+  var h = { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' };
+  if (apiKey === '__PIN__') h['x-app-pin'] = (localStorage.getItem('appPin') || '').trim();
+  else h['x-api-key'] = String(apiKey).trim();
+  return h;
+}
+
 function aiErrorText(status, data) {
   var msg = (data && data.error && data.error.message) || '';
   if (!data) return 'El servicio intermedio de IA no responde bien (código ' + status + '). Avisa al administrador.';
+  if (/Código de acceso|modo con código/i.test(msg)) return msg;
+  if (/Origen no permitido/i.test(msg)) return 'La IA solo funciona desde la dirección oficial de la app.';
   if (/Falta la API key/i.test(msg)) return 'Falta la clave de Anthropic. Añádela en ajustes.';
   if (status === 401) return 'La clave de Anthropic no es válida o ha sido revocada. Revísala en ajustes.';
   if (/credit balance/i.test(msg)) return 'La cuenta de Anthropic se ha quedado sin saldo. Añade crédito en la Consola de Anthropic.';
@@ -1226,7 +1260,7 @@ async function callAI(apiKey, messages, system = null, opts = {}) {
       if (system) body.system = system;
       res = await fetch(WORKER_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': String(apiKey).trim(), 'anthropic-version': '2023-06-01' },
+        headers: aiHeaders(apiKey),
         body: JSON.stringify(body),
         signal: ctrl.signal
       });
@@ -1257,6 +1291,13 @@ async function callAI(apiKey, messages, system = null, opts = {}) {
 // ═══════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════
+function pdfFontCss() {
+  var faces = [[300,'normal'],[400,'normal'],[500,'normal'],[600,'normal'],[700,'normal']];
+  return faces.map(function(f) {
+    var u = new URL('fonts/mulish-latin-' + f[0] + '-' + f[1] + '.woff2', location.href).href;
+    return "@font-face{font-family:'Mulish';font-style:" + f[1] + ";font-weight:" + f[0] + ";src:url(" + u + ") format('woff2');}";
+  }).join('');
+}
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
 function showLoading(t='Pensando...') { document.getElementById('loadingText').textContent=t; document.getElementById('loadingOverlay').classList.add('visible'); }
@@ -1338,7 +1379,7 @@ async function ghFetch(method, path, body) {
   var cfg = getGHCfg();
   var url = 'https://api.github.com/repos/' + cfg.user + '/' + cfg.repo + '/contents/' + path;
   var ctrl = new AbortController();
-  var to = setTimeout(function() { ctrl.abort(); }, 25000);
+  var to = setTimeout(function() { ctrl.abort(); }, 15000);
   var opts = {
     method: method,
     cache: 'no-store',
@@ -1463,6 +1504,7 @@ function applyPlan(year, month, plan, pushed) {
 }
 
 function refreshViewAfterSync(year, month) {
+  updateBakBtn();
   renderSidebar();
   updateIndexView();
   updateMonthStatus();
@@ -1561,14 +1603,17 @@ async function doSyncSafe(year, month, opts) {
 function saveMonthToGitHub() { return syncMonth(currentYear, currentMonth, { push: true, manual: true }); }
 function loadMonthFromGitHub(year, month) { return syncMonth(year, month, { push: false }); }
 
-var _flushing = false;
+var _flushing = false, _flushAgain = false;
 async function flushPendingSync() {
   clearTimeout(_syncTimer);
-  if (_flushing) return;
+  if (_flushing) { _flushAgain = true; return; }   // si ya hay una en curso, se repite al terminar
   _flushing = true;
   try {
-    var list = pendingMonths();
-    for (var i = 0; i < list.length; i++) await syncMonth(list[i][0], list[i][1], { push: true });
+    do {
+      _flushAgain = false;
+      var list = pendingMonths();
+      for (var i = 0; i < list.length; i++) await syncMonth(list[i][0], list[i][1], { push: true });
+    } while (_flushAgain);
   } finally { _flushing = false; }
 }
 var _syncTimer = null;
@@ -1621,6 +1666,47 @@ function undoAI() {
   updateUndoBtn();
   if (activeSection && activeView === 'section') document.getElementById('richEditor').innerHTML = getSectionContent(activeSection);
   showToast('Cambios de la IA deshechos', 'success');
+}
+
+function listBackups() {
+  var out = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    var m = /^bak_(\d+)_(\d+)_(.+)$/.exec(k);
+    if (m) out.push({ key: k, y: parseInt(m[1], 10), m: parseInt(m[2], 10), s: m[3] });
+  }
+  return out;
+}
+function updateBakBtn() {
+  var n = listBackups().length;
+  ['btnBak', 'mBtnBak'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (!b) return;
+    b.style.display = n ? '' : 'none';
+    b.textContent = 'Recuperar copias locales (' + n + ')';
+  });
+}
+function recoverBackups() {
+  var list = listBackups();
+  for (var i = 0; i < list.length; i++) {
+    var b = list[i];
+    var html = localStorage.getItem(b.key) || '';
+    var mes = getMonthLabel(b.m, b.y);
+    if (isMonthClosed(b.y, b.m)) { alert('El mes de ' + mes + ' está cerrado. Reábrelo para recuperar la copia de «' + b.s + '».'); continue; }
+    var preview = plainText(html).slice(0, 160);
+    if (confirm('Copia local de «' + b.s + '» (' + mes + '):\n\n' + preview + '...\n\n¿Añadirla al final de esa sección?')) {
+      var key = secKeyYM(b.y, b.m, b.s);
+      var cur = localStorage.getItem(key) || '';
+      localStorage.setItem(key, cur ? cur + '<br><br>' + html : html);
+      localStorage.setItem('dirty_' + b.y + '_' + b.m + '_' + b.s, '1');
+      localStorage.removeItem(b.key);
+    } else if (confirm('¿Descartar esta copia? Si pulsas Cancelar se conserva.')) {
+      localStorage.removeItem(b.key);
+    }
+  }
+  updateBakBtn();
+  refreshViewAfterSync(currentYear, currentMonth);
+  scheduleSync(2000);
 }
 
 function resolveSection(name) {
@@ -1706,6 +1792,7 @@ function saveMobileConfig() {
   var t = document.getElementById('mGhToken');
   if (k && k.value) localStorage.setItem('apiKey', k.value);
   if (t && t.value) localStorage.setItem('ghToken', t.value);
+  var p = document.getElementById('mPin'); if (p) localStorage.setItem('appPin', p.value);
   kickSyncSoon();
 }
 function loadMobileConfig() {
@@ -1713,6 +1800,7 @@ function loadMobileConfig() {
   var t = document.getElementById('mGhToken');
   if (k) k.value = localStorage.getItem('apiKey') || '';
   if (t) t.value = localStorage.getItem('ghToken') || '';
+  var p = document.getElementById('mPin'); if (p) p.value = localStorage.getItem('appPin') || '';
 }
 
 // ═══════════════════════════════════════
@@ -1812,6 +1900,12 @@ function reabrirMes() {
 
 
 init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+  });
+}
 </script>
 </body>
 </html>
